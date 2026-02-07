@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+python-multipart
+openai-whisper
+torch
+setuptools
+numpy
+yt-dlp
+openai
+aiofiles
+slowapi
