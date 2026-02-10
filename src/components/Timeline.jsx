@@ -35,22 +35,22 @@ const Ruler = React.memo(({ zoom, duration }) => {
     );
 });
 
-// Memoized Playhead
-const Playhead = ({ time, zoom }) => {
-    const style = useMemo(() => ({
-        position: 'absolute',
-        top: 0,
-        bottom: 0,
-        left: time * zoom,
-        width: '1px',
-        background: '#FF3366',
-        zIndex: 100,
-        pointerEvents: 'none'
-        // We do NOT add transition here to keep it snappy/instant
-    }), [time, zoom]);
-
+const Playhead = React.memo(({ zoom, playheadRef }) => {
     return (
-        <div style={style}>
+        <div
+            ref={playheadRef}
+            style={{
+                position: 'absolute',
+                top: 0,
+                bottom: 0,
+                left: 0,
+                width: '1px',
+                background: '#FF3366',
+                zIndex: 100,
+                pointerEvents: 'none',
+                willChange: 'transform'
+            }}
+        >
             <div style={{
                 position: 'absolute',
                 top: 0,
@@ -62,7 +62,7 @@ const Playhead = ({ time, zoom }) => {
             }} />
         </div>
     );
-};
+});
 
 // Memoized Caption Blocks
 const CaptionBlocks = React.memo(({
@@ -76,17 +76,16 @@ const CaptionBlocks = React.memo(({
         <div style={{ position: 'relative', height: '100%', width: '100%', paddingTop: '40px' }}>
             {captions.map((caption, index) => (
                 <div
-                    key={index} // Ideally use unique ID
+                    key={index}
                     onMouseDown={(e) => onMouseDown(e, index, 'move')}
                     style={{
                         position: 'absolute',
                         left: caption.start * zoom,
-                        width: Math.max(2, (caption.end - caption.start) * zoom), // Ensure visible min width
+                        width: Math.max(2, (caption.end - caption.start) * zoom),
                         top: '45px',
                         border: selectedCaptionIndex === index ? '2px solid #FF6B6B' : (caption.confidence < 0.8 ? '1px dashed #FFA500' : '1px solid #333'),
                         boxShadow: selectedCaptionIndex === index ? '0 0 15px rgba(255,51,102,0.5)' : 'none',
                         zIndex: selectedCaptionIndex === index ? 20 : 10,
-                        transition: 'box-shadow 0.1s ease, border 0.1s ease', // Animate selection/border but NOT position/width for perf
                         background: '#1A1A1A',
                         borderRadius: '4px',
                         height: '24px',
@@ -97,21 +96,14 @@ const CaptionBlocks = React.memo(({
                         onSelect(index);
                     }}
                 >
-                    {/* Resize Handle Start */}
                     <div
                         onMouseDown={(e) => onMouseDown(e, index, 'resize-start')}
                         style={{
                             position: 'absolute',
-                            left: 0,
-                            top: 0,
-                            bottom: 0,
-                            width: '6px',
-                            cursor: 'ew-resize',
+                            left: 0, top: 0, bottom: 0,
+                            width: '6px', cursor: 'ew-resize',
                             background: 'rgba(255,255,255,0.05)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            zIndex: 2
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2
                         }}
                     >
                         <div style={{ width: '1px', height: '60%', background: 'rgba(255,255,255,0.2)' }} />
@@ -119,55 +111,23 @@ const CaptionBlocks = React.memo(({
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', height: '100%', paddingLeft: '10px' }}>
                         {caption.confidence < 0.8 && <span title="Low confidence transcription" style={{ color: '#FFA500', fontSize: '10px' }}>⚠️</span>}
-                        <span style={{
-                            fontSize: '10px',
-                            fontWeight: 700,
-                            color: '#eee',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis'
-                        }}>
+                        <span style={{ fontSize: '10px', fontWeight: 700, color: '#eee', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {caption.text}
                         </span>
                     </div>
 
-                    {/* Resize Handle End */}
                     <div
                         onMouseDown={(e) => onMouseDown(e, index, 'resize-end')}
                         style={{
                             position: 'absolute',
-                            right: 0,
-                            top: 0,
-                            bottom: 0,
-                            width: '6px',
-                            cursor: 'ew-resize',
+                            right: 0, top: 0, bottom: 0,
+                            width: '6px', cursor: 'ew-resize',
                             background: 'rgba(255,255,255,0.05)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
                         }}
                     >
                         <div style={{ width: '1px', height: '60%', background: 'rgba(255,255,255,0.2)' }} />
                     </div>
-
-                    {/* Trading Indicators */}
-                    {caption.detected && (
-                        <div style={{
-                            position: 'absolute',
-                            bottom: '1px',
-                            right: '8px',
-                            display: 'flex',
-                            gap: '2px',
-                            fontSize: '8px',
-                            pointerEvents: 'none',
-                            opacity: 0.8
-                        }}>
-                            {caption.detected.tickers?.length > 0 && <span>💲</span>}
-                            {caption.detected.bullish?.length > 0 && <span>🚀</span>}
-                            {caption.detected.bearish?.length > 0 && <span>🐻</span>}
-                            {caption.detected.prices?.length > 0 && <span>💰</span>}
-                        </div>
-                    )}
                 </div>
             ))}
         </div>
@@ -175,24 +135,53 @@ const CaptionBlocks = React.memo(({
 });
 
 
-const Timeline = ({
+const Timeline = React.forwardRef(({
     captions,
-    previewTime,
+    previewTime, // Still used for initial state and manual seeks
     videoUrl,
     onSeek,
     onUpdateCaption,
     onDeleteCaption,
-    onSplitCaption,
-    selectedCaptionIndex,
-    onSelectCaption
-}) => {
+    onSelectCaption,
+    selectedCaptionIndex
+}, ref) => {
     const containerRef = useRef(null);
-    const [zoom, setZoom] = useState(50); // pixels per second
-    const [dragging, setDragging] = useState(null); // { index, type: 'move' | 'resize-start' | 'resize-end', initialX }
+    const playheadRef = useRef(null);
+    const timeDisplayRef = useRef(null);
+    const [zoom, setZoom] = useState(50);
+    const [dragging, setDragging] = useState(null);
 
     const totalDuration = useMemo(() =>
         captions.length > 0 ? captions[captions.length - 1].end + 2 : 10
         , [captions]);
+
+    // Imperative API for smooth updates
+    React.useImperativeHandle(ref, () => ({
+        setTime: (time) => {
+            if (playheadRef.current) {
+                playheadRef.current.style.transform = `translateX(${time * zoom}px)`;
+            }
+            if (timeDisplayRef.current) {
+                const mins = Math.floor(time / 60);
+                const secs = Math.floor(time % 60);
+                const frames = Math.floor((time % 1) * 30);
+                timeDisplayRef.current.innerHTML = `${mins}:${secs.toString().padStart(2, '0')}:<span style="color: #FF3366">${frames.toString().padStart(2, '0')}</span>`;
+            }
+        },
+        scrollToTime: (time) => {
+            if (containerRef.current) {
+                const scrollPos = time * zoom - (containerRef.current.clientWidth / 2);
+                containerRef.current.scrollLeft = scrollPos;
+            }
+        }
+    }), [zoom]);
+
+    // Sync initial/seek state
+    useEffect(() => {
+        if (playheadRef.current) {
+            playheadRef.current.style.transform = `translateX(${previewTime * zoom}px)`;
+        }
+    }, [previewTime, zoom]);
 
     const handleMouseDown = (e, index, type) => {
         e.stopPropagation();
@@ -207,58 +196,30 @@ const Timeline = ({
     };
 
     useEffect(() => {
-        const handleKeyDown = (e) => {
-            if (selectedCaptionIndex !== null) {
-                if (e.key === 'Delete' || e.key === 'Backspace') {
-                    onDeleteCaption(selectedCaptionIndex);
-                    onSelectCaption(null);
-                }
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [selectedCaptionIndex, onDeleteCaption, onSelectCaption]);
-
-    useEffect(() => {
         const handleMouseMove = (e) => {
             if (!dragging) return;
-
             const dx = (e.clientX - dragging.startX) / zoom;
             const caption = captions[dragging.index];
 
             if (dragging.type === 'move') {
                 const duration = dragging.initialEnd - dragging.initialStart;
                 const newStart = Math.max(0, dragging.initialStart + dx);
-                onUpdateCaption(dragging.index, {
-                    ...caption,
-                    start: newStart,
-                    end: newStart + duration
-                });
+                onUpdateCaption(dragging.index, { ...caption, start: newStart, end: newStart + duration });
             } else if (dragging.type === 'resize-end') {
                 const newEnd = Math.max(caption.start + 0.1, dragging.initialEnd + dx);
-                onUpdateCaption(dragging.index, {
-                    ...caption,
-                    end: newEnd
-                });
+                onUpdateCaption(dragging.index, { ...caption, end: newEnd });
             } else if (dragging.type === 'resize-start') {
                 const newStart = Math.min(caption.end - 0.1, Math.max(0, dragging.initialStart + dx));
-                onUpdateCaption(dragging.index, {
-                    ...caption,
-                    start: newStart
-                });
+                onUpdateCaption(dragging.index, { ...caption, start: newStart });
             }
         };
 
-        const handleMouseUp = () => {
-            setDragging(null);
-        };
+        const handleMouseUp = () => setDragging(null);
 
         if (dragging) {
             window.addEventListener('mousemove', handleMouseMove);
             window.addEventListener('mouseup', handleMouseUp);
         }
-
         return () => {
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
@@ -281,15 +242,14 @@ const Timeline = ({
                     <span style={{ fontSize: '10px', fontWeight: 800, color: '#444', textTransform: 'uppercase' }}>Zoom</span>
                     <input
                         type="range"
-                        min="20"
-                        max="300"
+                        min="20" max="300"
                         value={zoom}
                         onChange={(e) => setZoom(parseInt(e.target.value))}
                         style={{ accentColor: '#FF3366', height: '4px', cursor: 'pointer' }}
                     />
                 </div>
-                <div style={{ fontSize: '11px', color: '#888', fontFamily: 'monospace', letterSpacing: '0.05em' }}>
-                    {Math.floor(previewTime / 60)}:{Math.floor(previewTime % 60).toString().padStart(2, '0')}:<span style={{ color: '#FF3366' }}>{Math.floor((previewTime % 1) * 30).toString().padStart(2, '0')}</span>
+                <div ref={timeDisplayRef} style={{ fontSize: '11px', color: '#888', fontFamily: 'monospace', letterSpacing: '0.05em' }}>
+                    0:00:<span style={{ color: '#FF3366' }}>00</span>
                 </div>
             </div>
 
@@ -308,12 +268,11 @@ const Timeline = ({
                     userSelect: 'none'
                 }}
             >
-                {/* Waveform - Memoized via AudioWaveform component normally, but ensure it receives stable props */}
                 <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0 }}>
                     <AudioWaveform videoUrl={videoUrl} zoom={zoom} duration={totalDuration} />
                 </div>
 
-                <Playhead time={previewTime} zoom={zoom} />
+                <Playhead zoom={zoom} playheadRef={playheadRef} />
 
                 <Ruler zoom={zoom} duration={totalDuration} />
 
@@ -325,14 +284,8 @@ const Timeline = ({
                     onSelect={onSelectCaption}
                 />
             </div>
-
-            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                <kbd style={{ background: '#333', padding: '2px 6px', borderRadius: '4px', fontSize: '10px' }}>Click to seek</kbd>
-                <kbd style={{ background: '#333', padding: '2px 6px', borderRadius: '4px', fontSize: '10px' }}>Drag to move</kbd>
-                <kbd style={{ background: '#333', padding: '2px 6px', borderRadius: '4px', fontSize: '10px' }}>Handle to resize</kbd>
-            </div>
-        </div >
+        </div>
     );
-};
+});
 
 export default Timeline;

@@ -429,6 +429,25 @@ function App() {
   };
 
 
+  // --- Refs ---
+  const timelineRef = useRef(null);
+  const lastStateUpdateTimeRef = useRef(0);
+
+  const handleTimeUpdate = useCallback((time) => {
+    // 1. Imperative high-speed updates (Playhead movement)
+    if (timelineRef.current) {
+      timelineRef.current.setTime(time);
+    }
+
+    // 2. Throttled state updates (UI/Captions logic)
+    // We update state at ~30fps (33ms) to keep it responsive but not overwhelming
+    const now = Date.now();
+    if (now - lastStateUpdateTimeRef.current > 33) {
+      setPreviewTime(time);
+      lastStateUpdateTimeRef.current = now;
+    }
+  }, []);
+
   // --- Layout Render (VEED Inspired) ---
   return (
     <div style={{
@@ -613,7 +632,7 @@ function App() {
             previewTime={previewTime}
             isPlaying={isPlaying}
             setIsPlaying={setIsPlaying}
-            setPreviewTime={setPreviewTime}
+            setPreviewTime={handleTimeUpdate}
             videoUrl={videoUrl}
             captionOffsets={captionOffsets}
             setCaptionOffsets={handleDragEnd}
@@ -697,6 +716,7 @@ function App() {
         <div style={{ flex: 1, position: 'relative' }}>
           {generatedCaptions ? (
             <Timeline
+              ref={timelineRef}
               captions={generatedCaptions.captions}
               previewTime={previewTime}
               videoUrl={videoUrl}

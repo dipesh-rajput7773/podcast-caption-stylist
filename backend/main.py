@@ -646,29 +646,37 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     if final_style.get('fontStyle') == 'italic':
                         word_tags += "\\i1"
                         
-                    if 'fontFamily' in final_style:
-                        font_str = final_style['fontFamily']
-                        if "," in font_str:
-                            font_name_override = font_str.split(',')[0].strip().replace("'", "").replace('"', "")
-                        else:
-                            font_name_override = font_str.strip().replace("'", "").replace('"', "")
-                        word_tags += f"\\fn{font_name_override}"
+                if 'fontFamily' in final_style:
+                    font_str = final_style['fontFamily']
+                    if "," in font_str:
+                        font_name_override = font_str.split(',')[0].strip().replace("'", "").replace('"', "")
+                    else:
+                        font_name_override = font_str.strip().replace("'", "").replace('"', "")
+                    
+                    # Font Mapping for downloaded files
+                    if "Caveat" in font_name_override:
+                        font_name_override = "Caveat"
+                    elif "Playfair" in font_name_override:
+                        font_name_override = "Playfair Display"
+                    elif "Montserrat" in font_name_override:
+                        font_name_override = "Montserrat"
+                        
+                    word_tags += f"\\fn{font_name_override}"
 
-                    if 'fontSize' in final_style:
-                        fs = final_style['fontSize']
-                        if isinstance(fs, str) and 'em' in fs:
-                            try:
-                                scale = float(fs.replace('em', '')) * 100
-                                word_tags += f"\\fscx{int(scale)}\\fscy{int(scale)}"
-                            except: pass
-                        elif isinstance(fs, (int, float)) or (isinstance(fs, str) and fs.isdigit()):
-                            # Absolute pixel size override
-                            word_tags += f"\\fs{int(fs)}"
+                if 'fontSize' in final_style:
+                    fs = final_style['fontSize']
+                    if isinstance(fs, str) and 'em' in fs:
+                        try:
+                            scale = float(fs.replace('em', '')) * 100
+                            word_tags += f"\\fscx{int(scale)}\\fscy{int(scale)}"
+                        except: pass
+                    elif isinstance(fs, (int, float)) or (isinstance(fs, str) and fs.isdigit()):
+                        word_tags += f"\\fs{int(fs)}"
 
-                if word_tags:
-                    full_line_text += f"{{{word_tags}}}{word_text}{{\\r}} " 
-                else:
-                    full_line_text += f"{word_text} "
+            if word_tags:
+                full_line_text += f"{{{word_tags}}}{word_text}{{\\r}} " 
+            else:
+                full_line_text += f"{word_text} "
 
             line = f"Dialogue: 0,{start_time},{end_time},Default,,0,0,0,,{{{line_ass}}}{full_line_text.strip()}\n"
             f.write(line)
